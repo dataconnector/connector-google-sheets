@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Configuration validation, batching controls, and header-aware row mapping
 - Google API client, Sheets SDK, auth libraries, Lombok, and SLF4J dependencies
 - Developer documentation (`README.md`, `CONTRIBUTING.md`) and release process notes
+- Optional `columns` configuration for selective column reads/writes across batch and streaming flows
 
 ---
 

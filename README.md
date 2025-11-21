@@ -8,7 +8,7 @@ Google Sheets Connector is a Universal Data Connector implementation that enable
 - Write batches of records with configurable buffer sizes
 - Continuous streaming support with graceful cancellation
 - Service Account (JSON file or inline) and OAuth2 (access/refresh token) authentication
-- Configurable batching, sheet/range selection, and row limits
+- Configurable batching, sheet/range selection, row limits, and column filtering
 - Structured configuration validation and detailed telemetry via SLF4J
 
 ## Requirements
@@ -47,11 +47,15 @@ Provide the following configuration keys through `ConnectorContext`:
 | `access_token` | string | *xor* | OAuth2 access token |
 | `refresh_token` | string | optional | OAuth2 refresh token (requires `client_id`/`client_secret`) |
 | `client_id` / `client_secret` | string | optional | OAuth2 client credentials used with refresh tokens |
+| `columns` | string / array | no | Inclusive list or ranges of 0-based column indexes to read/write (e.g., `0,2-4`) |
 
 Exactly one authentication strategy must be configured:
 
 1. **Service Account**: provide `credential_path` or `credential_json`
 2. **OAuth2 Access Token**: provide `access_token` (optionally with refresh token)
+
+When `columns` is specified, only the selected column indexes are read, streamed,
+or written. Column indexes are zero-based to align with connector record order.
 
 ## Usage
 
