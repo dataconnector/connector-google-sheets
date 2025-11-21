@@ -10,9 +10,11 @@ import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -104,6 +106,7 @@ public class GoogleSheetsConnector implements DataSource, DataSink, DataStreamSo
         boolean headerRow = context.getConfiguration("header_row", Boolean.class).orElse(true);
         int batchSize = context.getConfiguration("batch_size", Integer.class).orElse(500);
         int limit = context.getConfiguration("limit", Integer.class).orElse(-1);
+        Set<Integer> includedColumns = parseIncludedColumns(context);
 
         executorService.submit(() -> {
             try {
@@ -154,7 +157,7 @@ public class GoogleSheetsConnector implements DataSource, DataSink, DataStreamSo
                                 continue;
                             }
 
-                            Map<String, Object> record = mapRowToRecord(row, headers);
+                            Map<String, Object> record = mapRowToRecord(row, headers, includedColumns);
                             observer.onNext(record);
                             totalProcessed++;
                         }
@@ -215,13 +218,17 @@ public class GoogleSheetsConnector implements DataSource, DataSink, DataStreamSo
         String spreadsheetId = context.getConfiguration("spreadsheet_id", String.class).orElseThrow();
         String range = context.getConfiguration("range", String.class).orElse("Sheet1");
         boolean headerRow = context.getConfiguration("header_row", Boolean.class).orElse(true);
+        Set<Integer> includedColumns = parseIncludedColumns(context);
+        if (includedColumns != null) {
+            logger.debug("Restricting read() columns: {}", includedColumns);
+        }
 
         ValueRange response = service.spreadsheets().values().get(spreadsheetId, range).execute();
         List<List<Object>> values = response.getValues();
         List<Map<String, Object>> records = new ArrayList<>();
 
         if (values != null && !values.isEmpty()) {
-            records = parseRows(values, headerRow);
+            records = parseRows(values, headerRow, includedColumns);
         }
 
         return ConnectorResult.builder()
@@ -298,7 +305,8 @@ public class GoogleSheetsConnector implements DataSource, DataSink, DataStreamSo
                 .build();
     }
 
-    private List<Map<String, Object>> parseRows(List<List<Object>> values, boolean headerRow) {
+    private List<Map<String, Object>> parseRows(List<List<Object>> values, boolean headerRow,
+            Set<Integer> includedColumns) {
         List<Map<String, Object>> records = new ArrayList<>();
         if (values == null || values.isEmpty()) {
             return records;
@@ -320,19 +328,61 @@ public class GoogleSheetsConnector implements DataSource, DataSink, DataStreamSo
         }
 
         for (int i = startIndex; i < values.size(); i++) {
-            records.add(mapRowToRecord(values.get(i), headers));
+            records.add(mapRowToRecord(values.get(i), headers, includedColumns));
         }
         return records;
     }
 
-    private Map<String, Object> mapRowToRecord(List<Object> row, List<String> headers) {
+    private Map<String, Object> mapRowToRecord(List<Object> row, List<String> headers, Set<Integer> includedColumns) {
         Map<String, Object> record = new LinkedHashMap<>();
         for (int i = 0; i < headers.size(); i++) {
+            if (includedColumns != null && !includedColumns.contains(i)) {
+                continue;
+            }
+
             String key = headers.get(i);
             Object value = (i < row.size()) ? row.get(i) : null;
             record.put(key, value);
         }
         return record;
+    }
+
+    private Set<Integer> parseIncludedColumns(ConnectorContext context) {
+        Object columnsConfig = context.getConfiguration().get("columns");
+        if (columnsConfig == null) {
+            return null;
+        }
+
+        Set<Integer> indices = new HashSet<>();
+        try {
+            if (columnsConfig instanceof String) {
+                String[] parts = ((String) columnsConfig).split(",");
+                for (String part : parts) {
+                    part = part.trim();
+                    if (part.contains("-")) {
+                        String[] range = part.split("-");
+                        if (range.length != 2) {
+                            throw new IllegalArgumentException("Invalid column range: " + part);
+                        }
+                        int start = Integer.parseInt(range[0].trim());
+                        int end = Integer.parseInt(range[1].trim());
+                        for (int i = start; i <= end; i++) {
+                            indices.add(i);
+                        }
+                    } else {
+                        indices.add(Integer.parseInt(part));
+                    }
+                }
+            } else if (columnsConfig instanceof List) {
+                for (Object item : (List<?>) columnsConfig) {
+                    indices.add(Integer.parseInt(item.toString()));
+                }
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to parse 'columns' configuration. Reading all columns.", e);
+            return null;
+        }
+        return indices.isEmpty() ? null : indices;
     }
 
     private class GoogleSheetsStreamWriter implements StreamWriter {
@@ -343,6 +393,7 @@ public class GoogleSheetsConnector implements DataSource, DataSink, DataStreamSo
         private final List<List<Object>> buffer;
         private boolean isClosed = false;
         private List<String> headers = null;
+        private final ConnectorContext context;
 
         public GoogleSheetsStreamWriter(ConnectorContext context) throws IOException, GeneralSecurityException {
             this.service = createSheetsService(context);
@@ -350,6 +401,7 @@ public class GoogleSheetsConnector implements DataSource, DataSink, DataStreamSo
             this.range = context.getConfiguration("range", String.class).orElse("Sheet1");
             this.bufferSize = context.getConfiguration("batch_size", Integer.class).orElse(500);
             this.buffer = new ArrayList<>();
+            this.context = context;
         }
 
         @Override
@@ -375,10 +427,15 @@ public class GoogleSheetsConnector implements DataSource, DataSink, DataStreamSo
                 headers = new ArrayList<>(records.get(0).keySet());
             }
 
+            Set<Integer> includedColumns = parseIncludedColumns(context);
+
             for (Map<String, Object> record : records) {
                 List<Object> row = new ArrayList<>();
-                for (String header : headers) {
-                    row.add(record.getOrDefault(header, ""));
+                for (int i = 0; i < headers.size(); i++) {
+                    if (includedColumns != null && !includedColumns.contains(i)) {
+                        continue;
+                    }
+                    row.add(record.getOrDefault(headers.get(i), ""));
                 }
                 buffer.add(row);
 
