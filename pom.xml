@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.github.dataconnector</groupId>
+        <artifactId>connector-parent</artifactId>
+        <version>1.0.0</version>
+        <relativePath /> <!-- Lookup parent from repository -->
+    </parent>
+
+    <groupId>io.github.dataconnector</groupId>
+    <artifactId>connector-google-sheets</artifactId>
+    <version>0.0.1</version>
+    <packaging>jar</packaging>
+
+    <name>Connector Google Sheets</name>
+    <description>Google Sheets Connector Implementation for Universal Data Connectors</description>
+    <url>https://github.com/dataconnector/connector-google-sheets</url>
+
+    <issueManagement>
+        <system>GitHub Issues</system>
+        <url>https://github.com/dataconnector/connector-google-sheets/issues</url>
+    </issueManagement>
+
+    <scm>
+        <connection>scm:git:git://github.com/dataconnector/connector-google-sheets.git</connection>
+        <developerConnection>scm:git:ssh://github.com/dataconnector/connector-google-sheets.git</developerConnection>
+        <url>https://github.com/dataconnector/connector-google-sheets</url>
+        <tag>HEAD</tag>
+    </scm>
+
+    <developers>
+        <developer>
+            <id>haiphamcoder</id>
+            <name>Hai Pham Ngoc</name>
+            <email>ngochai285nd@gmail.com</email>
+        </developer>
+    </developers>
+
+    <licenses>
+        <license>
+            <name>Apache License 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0</url>
+        </license>
+    </licenses>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.github.dataconnector</groupId>
+            <artifactId>connector-spi</artifactId>
+            <version>0.0.2</version>
+        </dependency>
+    </dependencies>
+
+</project>
