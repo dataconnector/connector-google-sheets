@@ -18,7 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial project structure and basic connector implementation
+- Production-ready `GoogleSheetsConnector` supporting read/write and streaming operations
+- OAuth2 access/refresh token flow in addition to service account based authentication
+- Configuration validation, batching controls, and header-aware row mapping
+- Google API client, Sheets SDK, auth libraries, Lombok, and SLF4J dependencies
+- Developer documentation (`README.md`, `CONTRIBUTING.md`) and release process notes
 
 ---
 
